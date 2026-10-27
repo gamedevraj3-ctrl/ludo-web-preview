@@ -1,0 +1,89 @@
+name: Deploy Web Preview
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build-deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Extract web zip
+        run: |
+          set -e
+          rm -rf _site
+          mkdir -p _site
+
+          Z=$(find . -maxdepth 2 -type f -name '*.zip' | head -n 1 || true)
+          if [ -n "$Z" ]; then
+            echo "Found zip: $Z"
+            mkdir -p _extract
+            unzip -q -o "$Z" -d _extract
+
+            # Prefer .../web/index.html (Flutter web build layout)
+            WEB=$(find _extract -type f -name index.html | head -n 1 || true)
+            if [ -n "$WEB" ]; then
+              WEB_DIR=$(dirname "$WEB")
+              echo "Using web dir: $WEB_DIR"
+              cp -a "$WEB_DIR"/. _site/
+            else
+              echo "No index.html inside zip"
+              exit 1
+            fi
+          elif [ -f index.html ]; then
+            echo "Using repo root as site"
+            # copy everything except git/workflow/zip
+            shopt -s dotglob
+            for item in *; do
+              case "$item" in
+                .git|.github|_site|_extract|*.zip) ;;
+                *) cp -a "$item" _site/ ;;
+              esac
+            done
+          else
+            echo "No zip and no index.html — upload Ludo_Flutter_Web_Preview.zip to repo root"
+            ls -la
+            exit 1
+          fi
+
+          # GitHub project pages base href
+          if [ -f _site/index.html ]; then
+            sed -i 's|<base href="/">|<base href="/ludo-web-preview/">|g' _site/index.html || true
+            sed -i 's|<base href="/">|<base href="/ludo-web-preview/">|g' _site/index.html || true
+            # force project base if missing/wrong
+            if ! grep -q 'base href="/ludo-web-preview/"' _site/index.html; then
+              sed -i 's|<base href="[^"]*">|<base href="/ludo-web-preview/">|' _site/index.html || true
+            fi
+            grep -n 'base href' _site/index.html || true
+          fi
+
+          # nojekyll for flutter assets
+          touch _site/.nojekyll
+          ls -la _site | head -30
+
+      - name: Setup Pages
+        uses: actions/configure-pages@v5
+
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
