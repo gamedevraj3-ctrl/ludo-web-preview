@@ -7,8 +7,6 @@ on:
 
 permissions:
   contents: write
-  pages: write
-  id-token: write
 
 concurrency:
   group: pages
@@ -17,67 +15,44 @@ concurrency:
 jobs:
   build-deploy:
     runs-on: ubuntu-latest
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - uses: actions/checkout@v4
 
-      - name: Extract web zip
+      - name: Extract web zip to site/
         run: |
           set -e
-          rm -rf _site
-          mkdir -p _site
+          rm -rf site
+          mkdir -p site
 
           Z=$(find . -maxdepth 2 -type f -name '*.zip' | head -n 1 || true)
-          if [ -n "$Z" ]; then
-            echo "Found zip: $Z"
-            mkdir -p _extract
-            unzip -q -o "$Z" -d _extract
-
-            WEB=$(find _extract -type f -name index.html | head -n 1 || true)
-            if [ -n "$WEB" ]; then
-              WEB_DIR=$(dirname "$WEB")
-              echo "Using web dir: $WEB_DIR"
-              cp -a "$WEB_DIR"/. _site/
-            else
-              echo "No index.html inside zip"
-              find _extract -maxdepth 3 -type f | head -40
-              exit 1
-            fi
-          elif [ -f index.html ]; then
-            echo "Using repo root as site"
-            shopt -s dotglob
-            for item in *; do
-              case "$item" in
-                .git|.github|_site|_extract|*.zip) ;;
-                *) cp -a "$item" _site/ ;;
-              esac
-            done
-          else
-            echo "No zip and no index.html"
+          if [ -z "$Z" ]; then
+            echo "No zip found"
             ls -la
             exit 1
           fi
+          echo "Found zip: $Z"
+          mkdir -p _extract
+          unzip -q -o "$Z" -d _extract
 
-          if [ -f _site/index.html ]; then
-            sed -i 's|<base href="[^"]*">|<base href="/ludo-web-preview/">|' _site/index.html || true
-            grep -n 'base href' _site/index.html || true
+          WEB=$(find _extract -type f -name index.html | head -n 1 || true)
+          if [ -z "$WEB" ]; then
+            echo "No index.html in zip"
+            find _extract | head -50
+            exit 1
           fi
+          WEB_DIR=$(dirname "$WEB")
+          echo "Using: $WEB_DIR"
+          cp -a "$WEB_DIR"/. site/
 
-          touch _site/.nojekyll
-          ls -la _site | head -30
+          sed -i 's|<base href="[^"]*">|<base href="/ludo-web-preview/">|' site/index.html || true
+          touch site/.nojekyll
+          grep -n 'base href' site/index.html || true
+          ls -la site | head -20
 
-      - name: Setup Pages
-        uses: actions/configure-pages@v5
+      - name: Deploy to gh-pages
+        uses: peaceiris/actions-gh-pages@v4
         with:
-          enablement: true
-
-      - name: Upload artifact
-        uses: actions/upload-pages-artifact@v3
-        with:
-          path: _site
-
-      - name: Deploy to GitHub Pages
-        id: deployment
-        uses: actions/deploy-pages@v4
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./site
+          force_orphan: true
+          enable_jekyll: false
