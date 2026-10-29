@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Profile Preview</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; background: #0B0E14; color: #fff;
+    font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif; overflow: hidden; }
+  .root {
+    height: 100%;
+    background: linear-gradient(180deg, #1A2230 0%, #0B0E14 55%, #050608 100%);
+    display: flex; flex-direction: row;
+  }
+  .tabs {
+    width: 12%; min-width: 88px;
+    display: flex; flex-direction: column; align-items: stretch;
+    padding: 16px 8px; gap: 8px;
+  }
+  .tab {
+    padding: 14px 6px; text-align: center; font-size: 10px; font-weight: 900;
+    letter-spacing: 0.8px; color: rgba(255,255,255,.45); border-left: 3px solid transparent;
+  }
+  .tab.on {
+    color: #FFC425; background: rgba(255,196,37,.12); border-left-color: #FFC425;
+    border-radius: 6px;
+  }
+  .close {
+    margin-top: auto; align-self: center; width: 40px; height: 40px; border-radius: 50%;
+    background: #E0302C; display: grid; place-items: center; font-size: 18px; font-weight: 900;
+  }
+  .char {
+    flex: 5; display: flex; align-items: flex-end; justify-content: center;
+    padding-bottom: 4%;
+  }
+  .char-fig {
+    width: min(42vh, 280px); height: min(78vh, 520px);
+    background: linear-gradient(180deg, #3a4a62 0%, #1a2230 100%);
+    border-radius: 16px 16px 8px 8px;
+    position: relative;
+    box-shadow: 0 20px 50px rgba(0,0,0,.45);
+  }
+  .char-fig::after {
+    content: 'CHARACTER';
+    position: absolute; left: 0; right: 0; bottom: 18px; text-align: center;
+    font-size: 11px; font-weight: 800; letter-spacing: 2px; color: rgba(255,255,255,.35);
+  }
+  .right {
+    width: 40%; padding: 20px 28px 20px 12px;
+    display: flex; flex-direction: column;
+  }
+  .title {
+    text-align: center; font-size: 13px; font-weight: 900; letter-spacing: 2.5px;
+    color: rgba(255,255,255,.45); margin-bottom: 16px;
+  }
+  /* ID card — natural 834/456 aspect, roomy padding */
+  .id-card {
+    width: 100%;
+    aspect-ratio: 834 / 456;
+    border-radius: 8px;
+    position: relative;
+    overflow: hidden;
+    background: linear-gradient(120deg, #2A3140, #1A1F28);
+    border: 2px solid #E8A317;
+    box-shadow: 0 8px 28px rgba(0,0,0,.4);
+  }
+  .id-card img.bg {
+    position: absolute; inset: 0; width: 100%; height: 100%; object-fit: fill;
+  }
+  .id-inner {
+    position: relative; z-index: 1; height: 100%;
+    padding: 10% 4%;
+    display: flex; flex-direction: row; align-items: stretch; gap: 3.5%;
+  }
+  .avatar {
+    width: 58%; max-width: 120px; aspect-ratio: 1;
+    height: auto; align-self: center;
+    border: 1.5px solid #FFC425; border-radius: 6px;
+    background: #0E1218;
+    display: grid; place-items: center;
+    color: rgba(255,255,255,.35); font-size: 11px; font-weight: 800;
+  }
+  .meta { flex: 1; display: flex; flex-direction: column; min-width: 0; }
+  .name-row { display: flex; align-items: center; gap: 8px; }
+  .name {
+    flex: 1; font-weight: 900; color: #1A1F28; font-size: clamp(13px, 2.2vw, 18px);
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .gear { width: 18px; height: 18px; opacity: .7; }
+  .lv { color: #2F6BFF; font-weight: 800; font-size: clamp(11px, 1.6vw, 14px); margin-top: 4px; }
+  .bottom {
+    margin-top: auto; display: flex; align-items: center; gap: 6px;
+    color: #1A1F28; font-weight: 800; font-size: clamp(11px, 1.5vw, 13px);
+  }
+  .bottom .uid { margin-left: auto; color: #6A7380; font-size: clamp(9px, 1.2vw, 11px); font-weight: 700; }
+  .ranks { flex: 1; margin-top: 14px; display: flex; flex-direction: column; gap: 10px; }
+  .rank {
+    flex: 1; background: #141A22; border-radius: 10px; border: 1px solid rgba(255,196,37,.4);
+    padding: 12px 14px; display: flex; align-items: center; gap: 12px;
+  }
+  .rank.silver { border-color: rgba(176,184,196,.45); }
+  .badge {
+    width: 36px; height: 36px; border-radius: 50%;
+    display: grid; place-items: center; font-size: 16px;
+    background: rgba(255,196,37,.2); border: 1.5px solid #FFC425;
+  }
+  .rank.silver .badge { background: rgba(176,184,196,.2); border-color: #B0B8C4; }
+  .rank h4 { font-size: 10px; color: rgba(255,255,255,.5); letter-spacing: .8px; }
+  .rank p { font-size: 16px; font-weight: 900; color: #FFC425; }
+  .rank.silver p { color: #B0B8C4; }
+</style>
+</head>
+<body>
+<div class="root">
+  <div class="tabs">
+    <div class="tab on">GALLERY</div>
+    <div class="tab">OVERVIEW</div>
+    <div class="tab">HISTORY</div>
+    <div class="close">×</div>
+  </div>
+  <div class="char"><div class="char-fig"></div></div>
+  <div class="right">
+    <div class="title">PROFILE</div>
+    <div class="id-card">
+      <img class="bg" src="assets/assets/ui/profile_stats_bg.png" alt=""
+           onerror="this.style.display='none'" />
+      <div class="id-inner">
+        <div class="avatar">FACE</div>
+        <div class="meta">
+          <div class="name-row">
+            <div class="name">PLAYER ONE</div>
+            <div class="gear">⚙</div>
+          </div>
+          <div class="lv">Lv.24  ·  GAMING</div>
+          <div class="bottom">
+            <span>👍</span>
+            <span>1842</span>
+            <span class="uid">UID:482910337</span>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="ranks">
+      <div class="rank">
+        <div class="badge">🏆</div>
+        <div><h4>RUSH RANKED</h4><p>GOLD</p></div>
+      </div>
+      <div class="rank silver">
+        <div class="badge">🏆</div>
+        <div><h4>CLASSIC</h4><p>SILVER</p></div>
+      </div>
+    </div>
+  </div>
+</div>
+</body>
+</html>
