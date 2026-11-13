@@ -1,4 +1,4 @@
-name: Deploy Web Preview
+name: Flutter Web Preview
 
 on:
   push:
@@ -7,6 +7,8 @@ on:
 
 permissions:
   contents: write
+  pages: write
+  id-token: write
 
 concurrency:
   group: pages
@@ -18,41 +20,52 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Extract web zip to site/
+      - name: Unpack source zip if present
         run: |
           set -e
-          rm -rf site
-          mkdir -p site
-
-          Z=$(find . -maxdepth 2 -type f -name '*.zip' | head -n 1 || true)
-          if [ -z "$Z" ]; then
-            echo "No zip found"
-            ls -la
-            exit 1
+          Z=$(find . -maxdepth 2 -type f \( -name '*.zip' -o -name '*.ZIP' \) | head -n 1 || true)
+          if [ -n "$Z" ]; then
+            echo "Found zip: $Z"
+            mkdir -p _src
+            unzip -q -o "$Z" -d _src
+            # Prefer folder that already has pubspec.yaml
+            ROOT=$(find _src -type f -name pubspec.yaml | head -n 1 | xargs dirname || true)
+            if [ -z "$ROOT" ]; then
+              echo "No pubspec.yaml inside zip"
+              find _src | head -80
+              exit 1
+            fi
+            echo "Using Flutter project root: $ROOT"
+            # Move project files to workspace root (keep .github)
+            shopt -s dotglob
+            for item in "$ROOT"/*; do
+              base=$(basename "$item")
+              if [ "$base" = ".github" ]; then continue; fi
+              rm -rf "./$base"
+              mv "$item" .
+            done
+          else
+            echo "No zip — expecting Flutter source already in repo root"
           fi
-          echo "Found zip: $Z"
-          mkdir -p _extract
-          unzip -q -o "$Z" -d _extract
+          test -f pubspec.yaml || { echo "pubspec.yaml missing"; ls -la; exit 1; }
 
-          WEB=$(find _extract -type f -name index.html | head -n 1 || true)
-          if [ -z "$WEB" ]; then
-            echo "No index.html in zip"
-            find _extract | head -50
-            exit 1
-          fi
-          WEB_DIR=$(dirname "$WEB")
-          echo "Using: $WEB_DIR"
-          cp -a "$WEB_DIR"/. site/
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
 
-          sed -i 's|<base href="[^"]*">|<base href="/ludo-web-preview/">|' site/index.html || true
-          touch site/.nojekyll
-          grep -n 'base href' site/index.html || true
-          ls -la site | head -20
+      - name: Flutter pub get
+        run: flutter pub get
+
+      - name: Build web
+        run: |
+          flutter build web --release --base-href "/ludo-web-preview/"
+          touch build/web/.nojekyll
 
       - name: Deploy to gh-pages
         uses: peaceiris/actions-gh-pages@v4
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
-          publish_dir: ./site
+          publish_dir: ./build/web
           force_orphan: true
           enable_jekyll: false
